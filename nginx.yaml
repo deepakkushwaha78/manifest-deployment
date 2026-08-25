@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nginx-deployment-ott
+  name: deploy-test-dev-dev
   namespace: ot-dev
   labels:
-    app: nginx
+    app: deploy-test-dev-dev
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: nginx
+      app: deploy-test-dev-dev
   template:
     metadata:
       labels:
-        app: nginx
+        app: deploy-test-dev-dev
     spec:
       containers:
-        - name: nginx
-          image: nginx:latest
+        - name: deploy-test-dev-dev
+          image: harbor.ldc.opstree.dev/library/ot-test:${BP_IMAGE_TAG}
           ports:
             - containerPort: 80
