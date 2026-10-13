@@ -1,0 +1,160 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bpmicro
+  namespace: uat
+spec:
+  replicas: 1
+  selector:
+      matchLabels:
+        name: bpmicro
+  strategy:
+   type: RollibpUpdate
+   rollibpUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        name: bpmicro
+    spec:
+      initContainers:
+      - name: alpine
+        image: 911888112133.dkr.ecr.eu-west-2.amazonaws.com/ecr-180248/alpine:latest
+        securityContext:
+          runAsNonRoot: false
+        command: ['sh', '-c']
+        args: ['chown -R 1000:1000 /mnt/* && chmod -R 755 /mnt/* ']
+        env:
+          - name: Release_Pipeline_Number
+            value: "AWS-Release-Build_Pipeline_Number"
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.name
+        volumeMounts:
+        - name: file-volume-mount
+          mountPath: /mnt/1
+          subPath: mnt/efs-config-uat/bpOne/AutomationStudio/WEB/bp/bpConfig
+        - name: log-volume-mount
+          mountPath: /mnt/2
+          subPath: mnt/efs-logs-uat/bpOne/AutomationStudio/WEB/bpTemp
+        - name: file-volume-mount
+          mountPath: /mnt/3
+          subPath: mnt/efs-config-uat/bpOne/AutomationStudio/WEB/context.xml
+        - name: file-volume-mount
+          mountPath: /mnt/4
+          subPath: mnt/efs-config-uat/bpOne/AutomationStudio/WEB/redisson.yaml
+        - name: file-volume-mount
+          mountPath: /mnt/5
+          subPath: mnt/efs-config-uat/bpOne/AutomationStudio/WEB/web.xml
+        - name: log-volume-mount
+          mountPath: /mnt/6
+          subPathExpr: mnt/efs-logs-uat/bpOne/ProductLogs/AutomationStudio/bpmicro-AWS-Release-Build_Pipeline_Number/tomcat_logs/$(POD_NAME)
+        - name: log-volume-mount
+          mountPath: /mnt/7
+          subPathExpr: mnt/efs-logs-uat/bpOne/ProductLogs/AutomationStudio/bpmicro-AWS-Release-Build_Pipeline_Number/bpLogs/$(POD_NAME)
+        - name: log-volume-mount
+          mountPath: /mnt/8
+          subPath: mnt/efs-logs-uat/bpOne/AutomationStudio/WEB/wdtemp
+        - name: file-volume-mount
+          mountPath: /mnt/9
+          subPath: mnt/efs-config-uat/bpOne/AutomationStudio/WEB/Omnirules
+      containers:
+      - name: bpmicro
+        image: 911888112133.dkr.ecr.eu-west-2.amazonaws.com/ecr-180248/bponeautomationstudioweb:${BP_IMAGE_TAG}
+        imagePullPolicy: Always
+        securityContext:
+          runAsNonRoot: true
+        resources:
+           requests:
+             memory: 8192Mi
+             cpu: 2000m
+           limits:
+             memory: 8192Mi
+             cpu: 2000m
+        volumeMounts:
+        - name: file-volume-mount
+          mountPath: /bp/jws-6.2/tomcat/bin/bp/bpConfig
+          subPath: mnt/efs-config-uat/bpOne/AutomationStudio/WEB/bp/bpConfig
+        - name: log-volume-mount
+          mountPath: /bp/jws-6.2/tomcat/bin/bp/bpTemp
+          subPath: mnt/efs-logs-uat/bpOne/AutomationStudio/WEB/bpTemp
+        - name: file-volume-mount
+          mountPath: /bp/jws-6.2/tomcat/conf/context.xml
+          subPath: mnt/efs-config-uat/bpOne/AutomationStudio/WEB/context.xml
+        - name: file-volume-mount
+          mountPath: /bp/jws-6.2/tomcat/conf/redisson.yaml
+          subPath: mnt/efs-config-uat/bpOne/AutomationStudio/WEB/redisson.yaml
+        - name: file-volume-mount
+          mountPath: /bp/jws-6.2/tomcat/conf/web.xml
+          subPath: mnt/efs-config-uat/bpOne/AutomationStudio/WEB/web.xml
+        - name: log-volume-mount
+          mountPath: /bp/jws-6.2/tomcat/logs
+          subPathExpr: mnt/efs-logs-uat/bpOne/ProductLogs/AutomationStudio/bpmicro-AWS-Release-Build_Pipeline_Number/tomcat_logs/$(POD_NAME)
+        - name: log-volume-mount
+          mountPath: /bp/jws-6.2/tomcat/bin/bp/bpLogs
+          subPathExpr: mnt/efs-logs-uat/bpOne/ProductLogs/AutomationStudio/bpmicro-AWS-Release-Build_Pipeline_Number/bpLogs/$(POD_NAME)
+        - name: log-volume-mount
+          mountPath: /bp/jws-6.2/tomcat/bin/wdtemp
+          subPath: mnt/efs-logs-uat/bpOne/AutomationStudio/WEB/wdtemp
+        - name: file-volume-mount
+          mountPath: /bp/jws-6.2/tomcat/Omnirules
+          subPath: mnt/efs-config-uat/bpOne/AutomationStudio/WEB/Omnirules
+        ports:
+         - name: http
+           containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /omnidocs/web
+            port: 8080
+          # Intial delay is set to a high value to have a better
+          initialDelaySeconds: 30
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /omnidocs/web
+            port: 8080
+          initialDelaySeconds: 600
+          failureThreshold: 5
+          periodSeconds: 10
+        env:
+          - name: Release_Pipeline_Number
+            value: "AWS-Release-Build_Pipeline_Number"
+          - name: JAVA_OPTS
+            value: "-XX:+UseContainerSupport -XX:+DisableExplicitGC -XX:InitialRAMPercentage=50.0 -XX:MaxRAMPercentage=50.0"
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.name
+          - name: TZ
+            value: Asia/Kolkata
+          - name: SecretManagerEnabled
+            value: "false"
+          - name: SecretManagerVaultName
+            value: "Server_Services"
+      volumes:
+        - name: file-volume-mount
+          persistentVolumeClaim:
+            claimName: aws-efs-claim-uat-a
+        - name: log-volume-mount
+          persistentVolumeClaim:
+            claimName: aws-efs-claim-uat-b
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: bpmicro
+  namespace: uat
+spec:
+  selector:
+   name: bpmicro
+  ports:
+   - name: http
+     port: 8080
+     targetPort: 8080
+# For Expose
+  type: NodePort
